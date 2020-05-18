@@ -27,7 +27,7 @@ lib:
 
 clean:
 	make -C $(MAIN_DIR) clean
-	make -C $(LIB_PATH) clean
+	#make -C $(LIB_PATH) clean
 
 clean_all:
 	make -C $(SPL_PATH) clean	

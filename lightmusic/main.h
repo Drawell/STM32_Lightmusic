@@ -16,15 +16,15 @@ void init_button(void);
 
 /*!
     \brief Init Timer
-    Init GPIOA Pins 0 IN mode and init EXTI_Line0 interruption
+    Init TIM4 for PWM
  */
-void init_timer(void);
+void init_pwm_timer(void);
 
 /*!
-    \brief Turn on next LED    
+    \brief Increase brightness
+    Increase brightness for all LEDs or make it zero after maximum 
  */
-void switch_LED();
-
+void increase_brightness(void);
 
 
 #endif // MAIN_H
