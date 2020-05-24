@@ -26,6 +26,8 @@ INCLUDE_DIRS += -I$(BUILD_ROOT)/stm_spl/CMSIS/ST/inc
 INCLUDE_DIRS += -I$(BUILD_ROOT)/stm_spl/CMSIS/ST/inc
 INCLUDE_DIRS += -I$(BUILD_ROOT)/stm_spl/STM32F4xx/inc
 INCLUDE_DIRS += -I$(BUILD_ROOT)/common/include
+INCLUDE_DIRS += -I$(BUILD_ROOT)/lightmusic/inc
+INCLUDE_DIRS += -I$(BUILD_ROOT)/signal_processor/inc
 
 ###############################################################################
 #                                  C Defines                                  #
@@ -48,7 +50,9 @@ CFLAGS += $(INCLUDE_DIRS) $(DEFINES)
 LD_SCRIPT  = $(BUILD_ROOT)/common/ld/stm32f4xx_flash.ld
 LIB_DIRS  += $(BUILD_ROOT)/common/ld
 LIB_DIRS  += $(BUILD_ROOT)/stm_spl/
+LIB_DIRS  += $(BUILD_ROOT)/signal_processor/
 LIB_DIRS  += $(BUILD_ROOT)/common/
+
 
 LDFLAGS += $(addprefix -L, $(LIB_DIRS))
 
@@ -67,6 +71,7 @@ endif
 LDLIBS += -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 LDLIBS += -lstmcommon
 LDLIBS += -lstm_spl
+LDLIBS += -lsignal_processor
 
 STARTUP_S      = $(BUILD_ROOT)/common/as/startup_stm32f40_41xxx.S
 STARTUP        = ${STARTUP_S:.S=.o}
