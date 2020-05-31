@@ -1,19 +1,89 @@
 #include "controller.h"
 
-static uint8_t b_ignore_interrupt;
 static void init_button(void);
 static void init_timer(void);
+static void simple_fourier_light(uint16_t *data, uint16_t length);
+static void simple_sound_loudness(uint16_t *data, uint16_t length);
+
+static signal_handle_function_t handlers[] = {
+    simple_fourier_light,
+    simple_sound_loudness};
+static uint8_t current_handler_idx;
+
+static uint8_t b_ignore_interrupt;
+static uint8_t current_hello_toggle;
+static uint8_t b_saying_hello;
+
+static LED_color_t leds[] = {BLUE, GREEN, ORANGE, RED};
 
 void init_controller(void)
 {
+    current_handler_idx = 0;
     b_ignore_interrupt = 0;
+    b_saying_hello = 0;
     init_button();
     init_timer();
 }
 
+void say_hello(void)
+{
+    current_hello_toggle = 0;
+    b_saying_hello = 1;
+    TIM_Cmd(TIM2, ENABLE);
+}
+
+static void say_hallo_timer_handle(void)
+{
+    if (current_hello_toggle)
+
+    if (current_hello_toggle % 4 >= 2)
+        turn_off_led(BLUE | GREEN | ORANGE | RED);
+    else
+        turn_on_led(BLUE | GREEN | ORANGE | RED);
+
+    if (current_hello_toggle == 12)        
+        b_saying_hello = 0;
+
+    current_hello_toggle++;
+}
+
 void microphone_interrupt_handler(uint16_t *data, uint16_t length)
 {
-    LED_color_t leds[] = {GREEN, BLUE, RED, ORANGE};
+    if (b_saying_hello)
+        return;
+
+    handlers[current_handler_idx](data, length);
+}
+
+#define freq_count 4
+int32_t freq_magnitudes[freq_count];
+
+static void simple_fourier_light(uint16_t *data, uint16_t length)
+{
+    memset(freq_magnitudes, 0, freq_count * sizeof(freq_magnitudes[0]));
+    FFT(data, length, freq_magnitudes, freq_count);
+
+    int32_t max_fr = 0;
+    for (int i = 0; i < freq_count; i++)
+        max_fr = max_fr > freq_magnitudes[i] ? max_fr : freq_magnitudes[i];
+
+    int32_t min_fr = max_fr;
+    for (int i = 0; i < freq_count; i++)
+        min_fr = min_fr < freq_magnitudes[i] ? min_fr : freq_magnitudes[i];
+
+    if (max_fr == 0 || max_fr == min_fr)
+        return;
+
+    for (int i = 0; i < freq_count; i++)
+    {
+        uint8_t brightness = (freq_magnitudes[i] - min_fr) * 100 / (max_fr - min_fr);
+        brightness = (brightness * brightness) / 100;
+        set_brightness(leds[i], brightness);
+    }
+}
+
+static void simple_sound_loudness(uint16_t *data, uint16_t length)
+{
     uint8_t volume = signal_volume_in_percent(data, length);
     uint8_t quarter_volume;
     for (uint8_t i = 0; i < 4; i++)
@@ -84,7 +154,11 @@ void TIM2_IRQHandler(void)
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
     {
         b_ignore_interrupt = 0;
-        TIM_Cmd(TIM2, DISABLE);
+        if (b_saying_hello)
+            say_hallo_timer_handle();
+        else
+            TIM_Cmd(TIM2, DISABLE);
+
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
     }
 }
@@ -95,7 +169,9 @@ void EXTI0_IRQHandler(void)
     {
         if (!b_ignore_interrupt)
         {
+            current_handler_idx = (current_handler_idx + 1) % (sizeof(handlers) / sizeof(handlers[0]));
             b_ignore_interrupt = 1;
+            b_saying_hello = 0;
             TIM_Cmd(TIM2, ENABLE);
         }
         EXTI_ClearITPendingBit(EXTI_Line0);

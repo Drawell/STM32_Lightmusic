@@ -1,9 +1,5 @@
 #include "led_manager.h"
 
-#define PWM_MAX_PULSE 8399
-#define PWM_MIN_PULSE 1
-#define PERCENT_TO_PULSE(p) ((PWM_MAX_PULSE - PWM_MIN_PULSE) * p / 100)
-
 static void init_leds(void)
 {
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
@@ -69,21 +65,36 @@ void set_brightness(LED_color_t led, uint8_t percent)
     percent = percent > 100 ? 100 : percent;
     uint16_t brightness = PERCENT_TO_PULSE(percent);
 
-    switch (led)
-    {
-    case RED:
-        TIM_SetCompare3(TIM4, brightness);
-        break;
-    case GREEN:
-        TIM_SetCompare1(TIM4, brightness);
-        break;
-    case BLUE:
+    if (led & BLUE)
         TIM_SetCompare4(TIM4, brightness);
-        break;
-    case ORANGE:
+    if (led & GREEN)
+        TIM_SetCompare1(TIM4, brightness);
+    if (led & ORANGE)
         TIM_SetCompare2(TIM4, brightness);
-        break;
-    default:
-        break;
-    }
+    if (led & RED)
+        TIM_SetCompare3(TIM4, brightness);        
+}
+
+void turn_on_led(LED_color_t led)
+{
+    if (led & BLUE)
+        TIM_SetCompare4(TIM4, PWM_MAX_PULSE);
+    if (led & GREEN)
+        TIM_SetCompare1(TIM4, PWM_MAX_PULSE);
+    if (led & ORANGE)
+        TIM_SetCompare2(TIM4, PWM_MAX_PULSE);
+    if (led & RED)
+        TIM_SetCompare3(TIM4, PWM_MAX_PULSE);  
+}
+
+void turn_off_led(LED_color_t led)
+{
+    if (led & BLUE)
+        TIM_SetCompare4(TIM4, PWM_MIN_PULSE);
+    if (led & GREEN)
+        TIM_SetCompare1(TIM4, PWM_MIN_PULSE);
+    if (led & ORANGE)
+        TIM_SetCompare2(TIM4, PWM_MIN_PULSE);
+    if (led & RED)
+        TIM_SetCompare3(TIM4, PWM_MIN_PULSE);  
 }

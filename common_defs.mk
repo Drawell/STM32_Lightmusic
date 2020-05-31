@@ -52,7 +52,7 @@ LIB_DIRS  += $(BUILD_ROOT)/common/ld
 LIB_DIRS  += $(BUILD_ROOT)/stm_spl/
 LIB_DIRS  += $(BUILD_ROOT)/signal_processor/
 LIB_DIRS  += $(BUILD_ROOT)/common/
-
+LIB_DIRS  += $(BUILD_ROOT)/stm_spl/CMSIS/
 
 LDFLAGS += $(addprefix -L, $(LIB_DIRS))
 
@@ -72,6 +72,11 @@ LDLIBS += -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 LDLIBS += -lstmcommon
 LDLIBS += -lstm_spl
 LDLIBS += -lsignal_processor
+LDLIBS += -larm_cortexM4lf_math
+LDLIBS += -lc
+LDLIBS += -lg
+LDLIBS += -lm
+
 
 STARTUP_S      = $(BUILD_ROOT)/common/as/startup_stm32f40_41xxx.S
 STARTUP        = ${STARTUP_S:.S=.o}

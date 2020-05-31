@@ -6,7 +6,7 @@ COMMON_PATH = $(BUILD_ROOT)/common/
 LIB_PATH = $(BUILD_ROOT)/signal_processor/
 MAIN_DIR = $(BUILD_ROOT)/lightmusic/
 
-.PHONY: labs spl common lib clean
+.PHONY: spl common lib clean
 
 all: main
 

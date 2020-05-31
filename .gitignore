@@ -18,9 +18,13 @@
 
 # Libraries
 *.lib
-*.a
+#*.a
 *.la
 *.lo
+# want to add cmsis libs
+libstm_spl.a
+libsignal_processor.a
+libstmcommon.a
 
 # Shared objects (inc. Windows DLLs)
 *.dll

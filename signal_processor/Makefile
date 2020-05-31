@@ -18,5 +18,5 @@ $(LIB): $(STARTUP) $(OBJS)
 
 clean:
 	@echo "Cleaning directory"
-	@rm -f $(OBJS) $(DEPS) $(LIB) $(STARTUP)
+	@rm -f $(OBJS) $(DEPS) $(LIB)
 

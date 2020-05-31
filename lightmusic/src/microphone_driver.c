@@ -1,24 +1,5 @@
 #include "microphone_driver.h"
 
-#define SPI_SCK_PIN GPIO_Pin_10
-#define SPI_SCK_GPIO_PORT GPIOB
-#define SPI_SCK_GPIO_CLK RCC_AHB1Periph_GPIOB
-#define SPI_SCK_SOURCE GPIO_PinSource10
-#define SPI_SCK_AF GPIO_AF_SPI2
-
-#define SPI_MOSI_PIN GPIO_Pin_3
-#define SPI_MOSI_GPIO_PORT GPIOC
-#define SPI_MOSI_GPIO_CLK RCC_AHB1Periph_GPIOC
-#define SPI_MOSI_SOURCE GPIO_PinSource3
-#define SPI_MOSI_AF PIO_AF_SPI2
-
-#define AUDIO_REC_SPI_IRQHANDLER SPI2_IRQHandler
-
-#define MIC_FILTER_RESULT_LENGTH 16
-#define PCM_OUT_SIZE MIC_FILTER_RESULT_LENGTH
-
-#define INTERNAL_BUFF_SIZE 64
-
 static uint16_t Mic_DMA_PDM_Buffer0[INTERNAL_BUFF_SIZE]; //buffer for RAW MIC data (filled by DMA)
 static uint16_t Mic_DMA_PDM_Buffer1[INTERNAL_BUFF_SIZE]; //buffer for RAW MIC data (filled by DMA)
 
@@ -119,7 +100,7 @@ static void MP45DT02_I2S_init(void)
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource3, GPIO_AF_SPI2);
 
     SPI_I2S_DeInit(SPI2);
-    i2s_struct_ini.I2S_AudioFreq = I2S_AudioFreq_32k;
+    i2s_struct_ini.I2S_AudioFreq = I2S_AudioFreq_32k; //16 bit * 2 chanels * 32k = 1024 HHz 1 bit
     i2s_struct_ini.I2S_MCLKOutput = I2S_MCLKOutput_Disable;
     i2s_struct_ini.I2S_DataFormat = I2S_DataFormat_16b;
     i2s_struct_ini.I2S_Mode = I2S_Mode_MasterRx;
