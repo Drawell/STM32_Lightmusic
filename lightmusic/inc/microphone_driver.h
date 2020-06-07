@@ -2,10 +2,11 @@
 #define MICROPHONE_DRIVER
 #include <stm32f4xx.h>
 
-#define INTERNAL_BUFF_SIZE 256
+#define INTERNAL_BUFF_SIZE 512
 
 typedef void (*callback_t)(uint16_t*, uint16_t);
 
+void start_record(void);
 
 /*!
     \brief Init microphone

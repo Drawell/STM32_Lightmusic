@@ -1,105 +1,85 @@
 #include "controller.h"
 
+static void hello_said(void);
+static void say_hello_timer_handle();
 static void init_button(void);
 static void init_timer(void);
-static void simple_fourier_light(uint16_t *data, uint16_t length);
-static void simple_sound_loudness(uint16_t *data, uint16_t length);
 
-static signal_handle_function_t handlers[] = {
-    simple_fourier_light,
-    simple_sound_loudness};
-static uint8_t current_handler_idx;
+static signal_process_function_t signal_processors[] = {
+    //burn_all_divide_by_led_count,
+    //simple_sound_loudness,
+    burn_after_treshold,
+    three_tresholds,
+    smooth_changing,
+    burn_all_divide_by_led_count};
+
+static uint8_t current_func_idx;
 
 static uint8_t b_ignore_interrupt;
-static uint8_t current_hello_toggle;
+static uint8_t say_hello_counter;
 static uint8_t b_saying_hello;
+static uint8_t b_in_process;
 
 static LED_color_t leds[] = {BLUE, GREEN, ORANGE, RED};
+static uint8_t brightness_per_led[LED_COUNT];
 
 void init_controller(void)
 {
-    current_handler_idx = 0;
+    current_func_idx = 0;
     b_ignore_interrupt = 0;
     b_saying_hello = 0;
+    b_in_process = 0;
     init_button();
     init_timer();
+    init_LED_manager();
+    init_microphone_driver(&microphone_interrupt_handler);
+    say_hello(3);
 }
 
-void say_hello(void)
+void say_hello(uint8_t times)
 {
-    current_hello_toggle = 0;
+    say_hello_counter = times * 4;
     b_saying_hello = 1;
+    b_in_process = 1;
     TIM_Cmd(TIM2, ENABLE);
 }
 
-static void say_hallo_timer_handle(void)
+static void hello_said(void)
 {
-    if (current_hello_toggle)
+    b_saying_hello = 0;
+    b_in_process = 0;
+    TIM_Cmd(TIM2, DISABLE);
+    
+    start_record();
+}
 
-    if (current_hello_toggle % 4 >= 2)
+static void say_hello_timer_handle()
+{
+    if (say_hello_counter % 4 >= 2)
         turn_off_led(BLUE | GREEN | ORANGE | RED);
     else
         turn_on_led(BLUE | GREEN | ORANGE | RED);
 
-    if (current_hello_toggle == 12)        
-        b_saying_hello = 0;
+    if (say_hello_counter == 0)
+    {
+        hello_said();
+    }
 
-    current_hello_toggle++;
+    say_hello_counter--;
 }
 
 void microphone_interrupt_handler(uint16_t *data, uint16_t length)
 {
     if (b_saying_hello)
         return;
-
-    handlers[current_handler_idx](data, length);
-}
-
-#define freq_count 4
-int32_t freq_magnitudes[freq_count];
-
-static void simple_fourier_light(uint16_t *data, uint16_t length)
-{
-    memset(freq_magnitudes, 0, freq_count * sizeof(freq_magnitudes[0]));
-    FFT(data, length, freq_magnitudes, freq_count);
-
-    int32_t max_fr = 0;
-    for (int i = 0; i < freq_count; i++)
-        max_fr = max_fr > freq_magnitudes[i] ? max_fr : freq_magnitudes[i];
-
-    int32_t min_fr = max_fr;
-    for (int i = 0; i < freq_count; i++)
-        min_fr = min_fr < freq_magnitudes[i] ? min_fr : freq_magnitudes[i];
-
-    if (max_fr == 0 || max_fr == min_fr)
+    if (b_in_process)
         return;
 
-    for (int i = 0; i < freq_count; i++)
-    {
-        uint8_t brightness = (freq_magnitudes[i] - min_fr) * 100 / (max_fr - min_fr);
-        brightness = (brightness * brightness) / 100;
-        set_brightness(leds[i], brightness);
-    }
-}
-
-static void simple_sound_loudness(uint16_t *data, uint16_t length)
-{
-    uint8_t volume = signal_volume_in_percent(data, length);
-    uint8_t quarter_volume;
-    for (uint8_t i = 0; i < 4; i++)
-    {
-        if (volume > 25)
-        {
-            quarter_volume = 100;
-            volume -= 25;
-        }
-        else
-        {
-            quarter_volume = volume * 4;
-            volume = 0;
-        }
-        set_brightness(leds[i], quarter_volume);
-    }
+    b_in_process = 1;
+    if (signal_processors[current_func_idx](data, length, brightness_per_led, LED_COUNT))
+        for (uint8_t i = 0; i < LED_COUNT; i++)
+            set_brightness(leds[i], brightness_per_led[i]);
+    b_in_process = 0;
 }
 
 static void init_button(void)
@@ -153,13 +133,12 @@ void TIM2_IRQHandler(void)
 {
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
     {
+        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
         b_ignore_interrupt = 0;
         if (b_saying_hello)
-            say_hallo_timer_handle();
+            say_hello_timer_handle();
         else
             TIM_Cmd(TIM2, DISABLE);
-
-        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
     }
 }
 
@@ -167,13 +146,14 @@ void EXTI0_IRQHandler(void)
 {
     if (EXTI_GetITStatus(EXTI_Line0) != RESET)
     {
+        EXTI_ClearITPendingBit(EXTI_Line0);
         if (!b_ignore_interrupt)
         {
-            current_handler_idx = (current_handler_idx + 1) % (sizeof(handlers) / sizeof(handlers[0]));
+            switch_mod();
+            current_func_idx = (current_func_idx + 1) % (sizeof(signal_processors) / sizeof(signal_processors[0]));
             b_ignore_interrupt = 1;
             b_saying_hello = 0;
             TIM_Cmd(TIM2, ENABLE);
         }
-        EXTI_ClearITPendingBit(EXTI_Line0);
     }
 }

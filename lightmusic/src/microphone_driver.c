@@ -7,6 +7,11 @@ static void MP45DT02_I2S_init(void);
 static void WaveRecorder_DMA_Init(void);
 static callback_t callback_func = 0;
 
+void start_record(void)
+{
+    I2S_Cmd(SPI2, ENABLE);
+}
+
 void init_microphone_driver(callback_t interrupt_handler)
 {
     callback_func = interrupt_handler;
@@ -109,7 +114,5 @@ static void MP45DT02_I2S_init(void)
 
     I2S_Init(SPI2, &i2s_struct_ini);
 
-    WaveRecorder_DMA_Init();
-
-    I2S_Cmd(SPI2, ENABLE);
+    WaveRecorder_DMA_Init();    
 }

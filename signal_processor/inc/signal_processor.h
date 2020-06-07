@@ -9,8 +9,7 @@
 /* FFT settings */
 #define SAMPLES 512          /* 256 real parts and 256 imaginary parts */
 #define FFT_SIZE SAMPLES / 2 /* FFT size is always the same size as we have samples, so 256 in our case */
-// We want to get resolution of 45450 / 256 = 177.5 Hz
-// It means we need to get signal value every 23 microsec
+#define FREQ_COUNT 41// only 20HZ - 5kHZ make sense
 
 #define MAX_POSSIBLE_SIGNAL_VOLUME(length) (16 * (length))
 #define HALF_SIGNAL_VOLUME(length) (8 * (length))
@@ -18,22 +17,78 @@
 #define MAX_SIGNAL_VOLUME(length) (HALF_SIGNAL_VOLUME(length) + VOLUME_SCATTER(length) * 2)
 #define MIN_SIGNAL_VOLUME(length) (HALF_SIGNAL_VOLUME(length) - VOLUME_SCATTER(length) / 4)
 
-/*!
-    \brief Calculate signal volume counting ones  
-    \param data signal data
-    \param length data size
-    \return signal volume
-*/
-uint32_t signal_volume(uint16_t *PDM_data, uint16_t length);
+#define FADING_RATE 2
+#define TRESHOLD_FLAG_1 32
+#define TRESHOLD_FLAG_2 64
+#define TRESHOLD_FLAG_3 128
 
 /*!
-    \brief Calculate signal volume using maximum and minimum defined volume
-    \param data signal data
-    \param length data size
-    \return signal volume in percent
+    \brief Use for correct mod switching
 */
-uint8_t signal_volume_in_percent(uint16_t *PDM_data, uint16_t length);
+void switch_mod(void);
 
-void FFT(uint16_t *PDM_data, uint16_t length, int32_t *freq_magnitudes, uint16_t freq_count);
+/*!
+    \brief Then more loud then more LEDs be bright
+    \param data PDM signal data
+    \param length data size
+    \param brightness_per_led pointer to data to fill with percent of LED brightness
+    \param led_count LED count
+    \return always 1
+*/
+uint8_t simple_sound_loudness(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+
+/*!
+    \brief Divide all frequency diapason by led_count and calculate brightness for each LED
+    \param data PDM signal data
+    \param length data size
+    \param brightness_per_led pointer to data to fill with percent of LED brightness
+    \param led_count LED count
+    \return returns 0 if data size is not enough for FFT and need call function one more time
+*/
+uint8_t burn_all_divide_by_led_count(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+
+/*!
+    \brief Increase or decrease brightness considering spectral component power
+    \param data PDM signal data
+    \param length data size
+    \param brightness_per_led pointer to data to fill with percent of LED brightness
+    \param led_count LED count
+    \return returns 0 if data size is not enough for FFT and need call function one more time
+
+*/
+uint8_t smooth_changing(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+
+/*!
+    \brief Set 100% brightness when treshold is passed and hold it for a time
+    \param data PDM signal data
+    \param length data size
+    \param brightness_per_led pointer to data to fill with percent of LED brightness
+    \param led_count LED count
+    \return returns 0 if data size is not enough for FFT and need call function one more time
+
+*/
+uint8_t burn_after_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+
+/*!
+    \brief Set 100%, 70% or 30% considering specific thresholds
+    \param data PDM signal data
+    \param length data size
+    \param brightness_per_led pointer to data to fill with percent of LED brightness
+    \param led_count LED count
+    \return returns 0 if data size is not enough for FFT and need call function one more time
+*/
+uint8_t three_tresholds(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+
+/*!
+    \brief counting most repeated frequencies and highlight them
+    \param data PDM signal data
+    \param length data size
+    \param brightness_per_led pointer to data to fill with percent of LED brightness
+    \param led_count LED count
+    \return returns 0 if data size is not enough for FFT and need call function one more time
+*/
+uint8_t only_repeated_freq(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+
+
 
 #endif // SIGNAL_PROCESSOR

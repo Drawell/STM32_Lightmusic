@@ -4,7 +4,9 @@
 #include <signal_processor.h>
 #include "led_manager.h"
 
-typedef void (*signal_handle_function_t)(uint16_t*, uint16_t);
+#define LED_COUNT 4
+
+typedef uint8_t (*signal_process_function_t)(uint16_t*, uint16_t, uint8_t*, uint8_t);
 
 /*!
     \brief Init controlling program part
@@ -13,9 +15,10 @@ typedef void (*signal_handle_function_t)(uint16_t*, uint16_t);
 void init_controller(void);
 
 /*!
-    \brief Say hello via toggle all LEDs three times    
+    \brief Say hello via toggle all LEDs several times
+    \param times times to toggle LEDs
 */
-void say_hello(void);
+void say_hello(uint8_t times);
 
 /*!
     \brief Handles microphone signal   

@@ -41,6 +41,7 @@ CFLAGS += -O0 -g -MD
 CFLAGS += -Wall -Wextra -Wshadow -Wimplicit-function-declaration
 CFLAGS += -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
 CFLAGS += -fno-common -ffunction-sections -fdata-sections
+CFLAGS += -Os
 
 CFLAGS += $(INCLUDE_DIRS) $(DEFINES)
 
@@ -68,13 +69,11 @@ endif
 ###############################################################################
 #                                Used Libraries                               #
 ###############################################################################
-LDLIBS += -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
+LDLIBS += -Wl,--start-group -lgcc -lnosys -Wl,--end-group
 LDLIBS += -lstmcommon
 LDLIBS += -lstm_spl
 LDLIBS += -lsignal_processor
 LDLIBS += -larm_cortexM4lf_math
-LDLIBS += -lc
-LDLIBS += -lg
 LDLIBS += -lm
 
 
