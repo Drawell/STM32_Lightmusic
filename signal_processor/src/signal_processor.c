@@ -1,7 +1,7 @@
 #include "signal_processor.h"
 
 static uint8_t listening_for_repeated_freq();
-static void insertion_sort(uint32_t arr[], uint8_t start, uint8_t end);
+static void insertion_sort(uint16_t arr[], uint8_t start, uint8_t end);
 static uint32_t signal_volume(uint16_t *PDM_data, uint16_t length);
 static uint8_t signal_volume_in_percent(uint16_t *PDM_data, uint16_t length);
 static uint8_t collect_complex_data(uint16_t *PDM_data, uint16_t length);
@@ -28,12 +28,13 @@ static const uint8_t calc_ones_arr[256] =
 /* Global variables */
 static float32_t Input[SAMPLES];
 static float32_t Output[FFT_SIZE];
-static uint32_t Freq[FREQ_COUNT];
-static uint8_t Memory[FREQ_COUNT];
-static uint16_t complex_data_point;
+static uint16_t Freq[FREQ_COUNT];
+static uint16_t Memory[FREQ_COUNT];
+static uint16_t complex_data_point = 0;
 
 void switch_mod(void)
 {
+    complex_data_point = 0;
     memset(Memory, 0, sizeof(Memory) * sizeof(Memory[0]));
 }
 
@@ -113,42 +114,7 @@ uint8_t burn_all_divide_by_led_count(uint16_t *PDM_data, uint16_t length, uint8_
     return 1;
 }
 
-uint8_t smooth_changing(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count)
-{
-    // uses Memory for remembering early brightness power
-    if (PDM_data == 0 || !FFT(PDM_data, length))
-        return 0;
-
-    uint8_t freq_per_led = FREQ_COUNT / led_count;
-    uint32_t noise_threshold;
-    uint8_t led_idx, freq_idx, j;
-    for (led_idx = 0; led_idx < led_count; led_idx++)
-    {
-        noise_threshold = 0;
-        insertion_sort(Freq, freq_per_led * led_idx, freq_per_led * (led_idx + 1));
-        noise_threshold = Freq[freq_per_led * led_idx + freq_per_led / 2];
-
-        for(j = 0; j < freq_per_led; j++)
-        {
-            freq_idx = freq_per_led * led_idx + j;
-            brightness_per_led[led_idx] = 0;
-            if (Freq[freq_idx] > (7 * noise_threshold) / 2)            
-                Memory[freq_idx] = 100;            
-            else if (Freq[freq_idx] > (13 * noise_threshold) / 4)            
-                Memory[freq_idx] = Memory[freq_idx] > 60 ? Memory[freq_idx] : 60;            
-            else            
-                Memory[freq_idx] = Memory[freq_idx] < FADING_RATE ? 0 : Memory[freq_idx] - FADING_RATE;
-            
-
-            if (brightness_per_led[led_idx] < Memory[freq_idx])            
-                brightness_per_led[led_idx] = Memory[freq_idx];            
-        }
-    }
-        
-    return 1;
-}
-
-uint8_t burn_after_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count)
+uint8_t burn_after_adapt_median_treshold(uint16_t *PDM_data, uint16_t length, uint8_t *brightness_per_led, uint8_t led_count)
 {
     // uses Memory as counter
     if (PDM_data == 0 || !FFT(PDM_data, length))
@@ -163,11 +129,11 @@ uint8_t burn_after_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* bright
         insertion_sort(Freq, freq_per_led * led_idx, freq_per_led * (led_idx + 1));
         noise_threshold = Freq[freq_per_led * led_idx + freq_per_led / 2];
 
-        for(j = 0; j < freq_per_led; j++)
+        for (j = 0; j < freq_per_led; j++)
         {
             freq_idx = freq_per_led * led_idx + j;
             brightness_per_led[led_idx] = 0;
-            if (Freq[freq_idx] > (7 * noise_threshold) / 2)
+            if (Freq[freq_idx] > 3 * noise_threshold)
             {
                 Memory[freq_idx] = 20;
             }
@@ -182,13 +148,47 @@ uint8_t burn_after_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* bright
             }
         }
     }
-        
+
     return 1;
 }
 
-uint8_t three_tresholds(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count)
+uint8_t burn_after_artificial_treshold(uint16_t *PDM_data, uint16_t length, uint8_t *brightness_per_led, uint8_t led_count)
 {
     // uses Memory as counter
+    if (PDM_data == 0 || !FFT(PDM_data, length))
+        return 0;
+
+    uint8_t freq_per_led = FREQ_COUNT / led_count;
+    uint32_t noise_threshold;
+    uint8_t led_idx, freq_idx, j;
+    for (led_idx = 0; led_idx < led_count; led_idx++)
+    {
+        for (j = 0; j < freq_per_led; j++)
+        {
+            freq_idx = freq_per_led * led_idx + j;
+            brightness_per_led[led_idx] = 0;
+            if (Freq[freq_idx] > ARTIFICIAL_TRESHOLD)
+            {
+                Memory[freq_idx] = 20;
+            }
+            else
+            {
+                Memory[freq_idx] = Memory[freq_idx] < 1 ? 0 : Memory[freq_idx] - 1;
+            }
+
+            if (Memory[freq_idx])
+            {
+                brightness_per_led[led_idx] = 100;
+            }
+        }
+    }
+
+    return 1;
+}
+
+uint8_t smooth_changing_adapt_treshold(uint16_t *PDM_data, uint16_t length, uint8_t *brightness_per_led, uint8_t led_count)
+{
+    // uses Memory for remembering early brightness power
     if (PDM_data == 0 || !FFT(PDM_data, length))
         return 0;
 
@@ -201,64 +201,76 @@ uint8_t three_tresholds(uint16_t *PDM_data, uint16_t length, uint8_t* brightness
         insertion_sort(Freq, freq_per_led * led_idx, freq_per_led * (led_idx + 1));
         noise_threshold = Freq[freq_per_led * led_idx + freq_per_led / 2];
 
-        for(j = 0; j < freq_per_led; j++)
+        for (j = 0; j < freq_per_led; j++)
         {
             freq_idx = freq_per_led * led_idx + j;
             brightness_per_led[led_idx] = 0;
             if (Freq[freq_idx] > (7 * noise_threshold) / 2)
-            {
-                Memory[freq_idx] = 20 | TRESHOLD_FLAG_1;
-            }
+                Memory[freq_idx] = 100;
             else if (Freq[freq_idx] > (13 * noise_threshold) / 4)
-            {
-                Memory[freq_idx] = 20 | TRESHOLD_FLAG_2;
-            }
-            else if (Freq[freq_idx] > 3 * noise_threshold)
-            {
-                Memory[freq_idx] = 20 | TRESHOLD_FLAG_3;
-            }
+                Memory[freq_idx] = Memory[freq_idx] > 60 ? Memory[freq_idx] : 60;
             else
-            {
-                Memory[freq_idx]--;
-                if (Memory[freq_idx] & (~(TRESHOLD_FLAG_1 | TRESHOLD_FLAG_2 | TRESHOLD_FLAG_3)) == 0)
-                {
-                    Memory[freq_idx] = 0;
-                }
-            }
+                Memory[freq_idx] = Memory[freq_idx] < FADING_RATE ? 0 : Memory[freq_idx] - FADING_RATE;
 
-            if (Memory[freq_idx] & TRESHOLD_FLAG_1)                        
-                brightness_per_led[led_idx] = 100;
-            else if (Memory[freq_idx] & TRESHOLD_FLAG_2)                        
-                brightness_per_led[led_idx] = 50;                
-            else if (Memory[freq_idx] & TRESHOLD_FLAG_3)                        
-                brightness_per_led[led_idx] = 20;
-
+            if (brightness_per_led[led_idx] < Memory[freq_idx])
+                brightness_per_led[led_idx] = Memory[freq_idx];
         }
     }
-        
+
+    return 1;
+}
+
+uint8_t smooth_changing_high_treshold(uint16_t *PDM_data, uint16_t length, uint8_t *brightness_per_led, uint8_t led_count)
+{
+    if (PDM_data == 0 || !FFT(PDM_data, length))
+        return 0;
+
+    uint8_t freq_per_led = FREQ_COUNT / led_count;
+    uint32_t noise_threshold;
+    uint8_t led_idx, freq_idx, j;
+    for (led_idx = 0; led_idx < led_count; led_idx++)
+    {
+        noise_threshold = 0;
+        insertion_sort(Freq, freq_per_led * led_idx, freq_per_led * (led_idx + 1));
+        noise_threshold = Freq[freq_per_led * (led_idx + 1) - 2];
+
+        for (j = 0; j < freq_per_led; j++)
+        {
+            freq_idx = freq_per_led * led_idx + j;
+            brightness_per_led[led_idx] = 0;
+            if (Freq[freq_idx] > 2 * noise_threshold)
+                Memory[freq_idx] = 100;
+            else if (Freq[freq_idx] > (3 * noise_threshold) / 2)
+                Memory[freq_idx] = Memory[freq_idx] > 20 ? Memory[freq_idx] : 20;
+            else
+                Memory[freq_idx] = Memory[freq_idx] < FADING_RATE ? 0 : Memory[freq_idx] - FADING_RATE;
+
+            if (brightness_per_led[led_idx] < Memory[freq_idx])
+                brightness_per_led[led_idx] = Memory[freq_idx];
+        }
+    }
+
     return 1;
 }
 
 // static fuctions
 
-static void insertion_sort(uint32_t arr[], uint8_t start, uint8_t end) 
-{ 
+static void insertion_sort(uint16_t arr[], uint8_t start, uint8_t end)
+{
     uint8_t i, j;
-    uint32_t key;
+    uint16_t key;
 
-    for (i = start + 1; i < end; i++) { 
-        key = arr[i]; 
+    for (i = start + 1; i < end; i++)
+    {
+        key = arr[i];
         j = i - 1;
-
-        /* Move elements of arr[0..i-1], that are 
-          greater than key, to one position ahead 
-          of their current position */
-        while (j >= start && arr[j] > key) { 
-            arr[j + 1] = arr[j]; 
-            j = j - 1; 
-        } 
-        arr[j + 1] = key; 
-    } 
+        while (j >= start && arr[j] > key)
+        {
+            arr[j + 1] = arr[j];
+            j = j - 1;
+        }
+        arr[j + 1] = key;
+    }
 }
 
 static uint32_t signal_volume(uint16_t *PDM_data, uint16_t length)
@@ -304,7 +316,7 @@ static uint8_t FFT(uint16_t *PDM_data, uint16_t length)
 {
     if (!collect_complex_data(PDM_data, length))
         return 0;
-    
+
     arm_cfft_instance_f32 S; //ARM CFFT module
 
     // Initialization function for the floating-point, intFlag = 0, doBitReverse = 1
@@ -319,8 +331,7 @@ static uint8_t FFT(uint16_t *PDM_data, uint16_t length)
 
     // Output[0] = Signals DC value
     for (uint8_t i = 0; i < FREQ_COUNT; i++)
-        Freq[i] = (uint32_t)Output[i + 1];
+        Freq[i] = (uint16_t)Output[i + 1];
 
     return 1;
-    
 }

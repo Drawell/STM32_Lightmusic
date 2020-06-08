@@ -6,19 +6,17 @@ static void init_button(void);
 static void init_timer(void);
 
 static signal_process_function_t signal_processors[] = {
-    //burn_all_divide_by_led_count,
-    //simple_sound_loudness,
-    burn_after_treshold,
-    three_tresholds,
-    smooth_changing,
-    burn_all_divide_by_led_count};
+    burn_after_adapt_median_treshold,
+    burn_after_artificial_treshold,
+    smooth_changing_adapt_treshold,
+    smooth_changing_high_treshold,
+    };
 
 static uint8_t current_func_idx;
 
 static uint8_t b_ignore_interrupt;
 static uint8_t say_hello_counter;
 static uint8_t b_saying_hello;
-static uint8_t b_in_process;
 
 static LED_color_t leds[] = {BLUE, GREEN, ORANGE, RED};
 static uint8_t brightness_per_led[LED_COUNT];
@@ -28,11 +26,10 @@ void init_controller(void)
     current_func_idx = 0;
     b_ignore_interrupt = 0;
     b_saying_hello = 0;
-    b_in_process = 0;
     init_button();
     init_timer();
     init_LED_manager();
-    init_microphone_driver(&microphone_interrupt_handler);
+    init_microphone_driver(&microphone_interrupt_handler); 
     say_hello(3);
 }
 
@@ -40,16 +37,14 @@ void say_hello(uint8_t times)
 {
     say_hello_counter = times * 4;
     b_saying_hello = 1;
-    b_in_process = 1;
     TIM_Cmd(TIM2, ENABLE);
 }
 
 static void hello_said(void)
 {
     b_saying_hello = 0;
-    b_in_process = 0;
-    TIM_Cmd(TIM2, DISABLE);
-    
+    TIM_Cmd(TIM2, DISABLE);    
+    switch_mod();
     start_record();
 }
 
@@ -72,14 +67,10 @@ void microphone_interrupt_handler(uint16_t *data, uint16_t length)
 {
     if (b_saying_hello)
         return;
-    if (b_in_process)
-        return;
 
-    b_in_process = 1;
     if (signal_processors[current_func_idx](data, length, brightness_per_led, LED_COUNT))
         for (uint8_t i = 0; i < LED_COUNT; i++)
             set_brightness(leds[i], brightness_per_led[i]);
-    b_in_process = 0;
 }
 
 static void init_button(void)

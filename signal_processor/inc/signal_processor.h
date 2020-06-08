@@ -18,9 +18,7 @@
 #define MIN_SIGNAL_VOLUME(length) (HALF_SIGNAL_VOLUME(length) - VOLUME_SCATTER(length) / 4)
 
 #define FADING_RATE 2
-#define TRESHOLD_FLAG_1 32
-#define TRESHOLD_FLAG_2 64
-#define TRESHOLD_FLAG_3 128
+#define ARTIFICIAL_TRESHOLD 30
 
 /*!
     \brief Use for correct mod switching
@@ -47,16 +45,6 @@ uint8_t simple_sound_loudness(uint16_t *PDM_data, uint16_t length, uint8_t* brig
 */
 uint8_t burn_all_divide_by_led_count(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
 
-/*!
-    \brief Increase or decrease brightness considering spectral component power
-    \param data PDM signal data
-    \param length data size
-    \param brightness_per_led pointer to data to fill with percent of LED brightness
-    \param led_count LED count
-    \return returns 0 if data size is not enough for FFT and need call function one more time
-
-*/
-uint8_t smooth_changing(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
 
 /*!
     \brief Set 100% brightness when treshold is passed and hold it for a time
@@ -66,29 +54,45 @@ uint8_t smooth_changing(uint16_t *PDM_data, uint16_t length, uint8_t* brightness
     \param led_count LED count
     \return returns 0 if data size is not enough for FFT and need call function one more time
 
+    LED burn after treshold which is 3 * median of spectral components
 */
-uint8_t burn_after_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+
+uint8_t burn_after_adapt_median_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
 
 /*!
-    \brief Set 100%, 70% or 30% considering specific thresholds
+    \brief Set 100% brightness when treshold is passed and hold it for a time
     \param data PDM signal data
     \param length data size
     \param brightness_per_led pointer to data to fill with percent of LED brightness
     \param led_count LED count
     \return returns 0 if data size is not enough for FFT and need call function one more time
+
+    LED burn after treshold which constant value ARTIFICIAL_TRESHOLD
 */
-uint8_t three_tresholds(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+uint8_t burn_after_artificial_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
 
 /*!
-    \brief counting most repeated frequencies and highlight them
+    \brief Increase or decrease brightness considering spectral component power
     \param data PDM signal data
     \param length data size
     \param brightness_per_led pointer to data to fill with percent of LED brightness
     \param led_count LED count
     \return returns 0 if data size is not enough for FFT and need call function one more time
+
+    LED burn after treshold which is 3.5 * median of spectral components
 */
-uint8_t only_repeated_freq(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
+uint8_t smooth_changing_adapt_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
 
+/*!
+    \brief Increase or decrease brightness considering spectral component power
+    \param data PDM signal data
+    \param length data size
+    \param brightness_per_led pointer to data to fill with percent of LED brightness
+    \param led_count LED count
+    \return returns 0 if data size is not enough for FFT and need call function one more time
 
+    LED burn after treshold which is 2 * pre-most high of spectral components
+*/
+uint8_t smooth_changing_high_treshold(uint16_t *PDM_data, uint16_t length, uint8_t* brightness_per_led, uint8_t led_count);
 
 #endif // SIGNAL_PROCESSOR
